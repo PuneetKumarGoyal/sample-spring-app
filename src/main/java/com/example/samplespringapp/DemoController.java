@@ -10,4 +10,8 @@ public class DemoController {
     public String sayHello(){
         return "saying hello from sample spring boot app";
     }
+    @GetMapping("/saybye")
+    public String sayHello(){
+        return "saying bye from sample spring boot app";
+    }
 }
