@@ -1,33 +1,49 @@
-# This is a basic workflow to help you get started with Actions
-
 name: CI
-
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - 
+    - uses: actions/checkout@master
 
-    # Runs a single command using the runners shell
-    - name: Run a one-line script
-      run: echo Hello, world!
+        - uses: Azure/docker-login@v1
+          with:
+            login-server: bcrshared.azurecr.io
+            username: ${{ secrets.ACR_USERNAME }}
+            password: ${{ secrets.ACR_PASSWORD }}
 
-    # Runs a set of commands using the runners shell
-    - name: Run a multi-line script
-      run: |
-        echo Add other actions to build,
-        echo test, and deploy your project.
+        - run: |
+            docker build . -t bcrshared.azurecr.io/sample-spring-app:${{ github.sha }}
+            docker push bcrshared.azurecr.io/sample-spring-app:${{ github.sha }}
+
+        # Set the target AKS cluster.
+        - uses: Azure/aks-set-context@v1
+          with:
+            creds: '${{ secrets.AZURE_CREDENTIALS }}'
+            cluster-name: qa-norwayeast-shared-aks
+            resource-group: qa-norwayeast-rg
+
+        # create an ImagePullSecret to push the image from a private ACR repository
+        - uses: Azure/k8s-create-secret@v1
+            with:
+              container-registry-url: bcrshared.azurecr.io
+              container-registry-username: ${{ secrets.ACR_USERNAME }}
+              container-registry-password: ${{ secrets.ACR_PASSWORD }}
+              secret-name: k8s-secret
+
+        # deploy the application using the YAML manifests
+        - uses: Azure/k8s-deploy@v1
+            with:
+              manifests: |
+                manifests/deployment.yaml
+                manifests/service.yaml
+              images: |
+                bcrshared.azurecr.io/sample-spring-app:${{ github.sha }}
+              imagepullsecrets: |
+                k8s-secret

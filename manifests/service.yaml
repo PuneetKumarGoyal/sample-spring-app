@@ -1,0 +1,12 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name:  sample-spring-app
+spec:
+  selector:
+    app:  sample-spring-app
+  type:  LoadBalancer
+  ports:
+    - name:  http
+      port:  9900
+      targetPort: 9900
